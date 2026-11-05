@@ -23,6 +23,15 @@ interface SprinterDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSeedExercises(exercises: List<ExerciseEntity>)
 
+    @Query("""
+        DELETE FROM exercises
+        WHERE id = :id
+          AND id NOT LIKE 'starter-%'
+          AND NOT EXISTS (SELECT 1 FROM routine_exercises WHERE exerciseId = :id)
+          AND NOT EXISTS (SELECT 1 FROM workout_exercises WHERE exerciseId = :id)
+    """)
+    suspend fun deleteUnusedCustomExercise(id: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertRoutine(routine: RoutineEntity)
 
