@@ -68,9 +68,7 @@ private fun SprinterApp(repository: SprinterRepository) {
             modifier = Modifier.padding(padding)
         ) {
             composable(Screen.Exercises.route) { ExerciseLibrary(repository) }
-            composable(Screen.Routines.route) {
-                PlaceholderScreen("Your routines", "Reusable workouts are coming next.")
-            }
+            composable(Screen.Routines.route) { RoutineScreen(repository) }
             composable(Screen.History.route) {
                 PlaceholderScreen("Workout history", "Completed sessions will appear here.")
             }
