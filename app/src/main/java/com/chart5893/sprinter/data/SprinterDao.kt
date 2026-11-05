@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -13,6 +14,25 @@ interface SprinterDao {
 
     @Query("SELECT * FROM routines ORDER BY updatedAt DESC")
     fun observeRoutines(): Flow<List<RoutineEntity>>
+
+    @Query("SELECT * FROM routine_exercises ORDER BY displayOrder")
+    fun observeRoutineExercises(): Flow<List<RoutineExerciseEntity>>
+
+    @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
+    suspend fun clearRoutineExercises(routineId: String)
+
+    @Query("DELETE FROM routines WHERE id = :routineId")
+    suspend fun deleteRoutine(routineId: String)
+
+    @Transaction
+    suspend fun saveRoutineWithExercises(
+        routine: RoutineEntity,
+        entries: List<RoutineExerciseEntity>
+    ) {
+        upsertRoutine(routine)
+        clearRoutineExercises(routine.id)
+        entries.forEach { upsertRoutineExercise(it) }
+    }
 
     @Query("SELECT * FROM workout_sessions ORDER BY startedAt DESC")
     fun observeSessions(): Flow<List<WorkoutSessionEntity>>
