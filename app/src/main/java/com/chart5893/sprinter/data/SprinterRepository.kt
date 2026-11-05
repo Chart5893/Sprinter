@@ -9,6 +9,7 @@ class SprinterRepository(private val dao: SprinterDao) {
 
     suspend fun saveExercise(exercise: ExerciseEntity) = dao.upsertExercise(exercise)
     suspend fun saveRoutine(routine: RoutineEntity) = dao.upsertRoutine(routine)
+    suspend fun deleteCustomExercise(id: String): Boolean = dao.deleteUnusedCustomExercise(id) > 0
 
     suspend fun seedExercises() {
         val starters = listOf(
