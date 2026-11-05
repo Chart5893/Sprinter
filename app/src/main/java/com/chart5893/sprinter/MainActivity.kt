@@ -151,7 +151,7 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
                 val isCustom = !exercise.id.startsWith("starter-")
                 if (isCustom) {
                     val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = { it != SwipeToDismissBoxValue.EndToStart }
+                        confirmValueChange = { true }
                     )
                     SwipeToDismissBox(
                         state = dismissState,
@@ -185,7 +185,7 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("Delete custom exercise?") },
-            text = { Text("Remove \\\"\${exercise.name}\\\" from your library? This cannot be undone.") },
+            text = { Text("Remove ${exercise.name} from your library? This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = {
                     pendingDelete = null
