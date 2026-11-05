@@ -3,25 +3,18 @@ package com.chart5893.sprinter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
+import androidx.room.Room
+import com.chart5893.sprinter.data.*
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 private enum class Screen(val route: String, val title: String) {
     Exercises("exercises", "Exercises"),
@@ -32,28 +25,28 @@ private enum class Screen(val route: String, val title: String) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val database = Room.databaseBuilder(
+            applicationContext, SprinterDatabase::class.java, "sprinter.db"
+        ).build()
+        val repository = SprinterRepository(database.sprinterDao())
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    SprinterApp()
-                }
+                SprinterApp(repository)
             }
         }
     }
 }
 
 @Composable
-private fun SprinterApp() {
+private fun SprinterApp(repository: SprinterRepository) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
-    val currentRoute = backStack?.destination?.route
-
     Scaffold(
         bottomBar = {
             NavigationBar {
                 Screen.entries.forEach { screen ->
                     NavigationBarItem(
-                        selected = currentRoute == screen.route,
+                        selected = backStack?.destination?.route == screen.route,
                         onClick = {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -73,14 +66,184 @@ private fun SprinterApp() {
             startDestination = Screen.Exercises.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(Screen.Exercises.route) {
-                PlaceholderScreen("Exercise library", "Exercise creation and search are next.")
-            }
+            composable(Screen.Exercises.route) { ExerciseLibrary(repository) }
             composable(Screen.Routines.route) {
-                PlaceholderScreen("Your routines", "Build and save reusable workouts here.")
+                PlaceholderScreen("Your routines", "Reusable workouts are coming next.")
             }
             composable(Screen.History.route) {
                 PlaceholderScreen("Workout history", "Completed sessions will appear here.")
+            }
+        }
+    }
+}
+
+private val muscleGroups = listOf(
+    "All", "Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Cardio", "Other"
+)
+private val equipmentTypes = listOf(
+    "None", "Barbell", "Dumbbell", "Machine", "Cable", "Bodyweight", "Other"
+)
+
+@Composable
+private fun ExerciseLibrary(repository: SprinterRepository) {
+    val exercises by repository.exercises.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    var search by remember { mutableStateOf("") }
+    var group by remember { mutableStateOf("All") }
+    var showAdd by remember { mutableStateOf(false) }
+
+    LaunchedEffect(repository) { repository.seedExercises() }
+
+    val visible = remember(exercises, search, group) {
+        exercises.filter {
+            (group == "All" || it.muscleGroup == group) &&
+                it.name.contains(search.trim(), ignoreCase = true)
+        }
+    }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Exercises", style = MaterialTheme.typography.headlineMedium)
+        OutlinedTextField(
+            value = search,
+            onValueChange = { search = it },
+            label = { Text("Search exercises") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        var groupExpanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(
+            expanded = groupExpanded,
+            onExpandedChange = { groupExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = group,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Muscle group") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupExpanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = groupExpanded,
+                onDismissRequest = { groupExpanded = false }
+            ) {
+                muscleGroups.forEach { item ->
+                    DropdownMenuItem(
+                        text = { Text(item) },
+                        onClick = { group = item; groupExpanded = false }
+                    )
+                }
+            }
+        }
+        Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Add custom exercise")
+        }
+        Text("${visible.size} exercises", style = MaterialTheme.typography.labelMedium)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(visible, key = { it.id }) { exercise ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            listOfNotNull(exercise.muscleGroup, exercise.equipment)
+                                .joinToString(" • "),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        if (!exercise.notes.isNullOrBlank()) {
+                            Text(exercise.notes, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (showAdd) {
+        AddExerciseDialog(
+            onDismiss = { showAdd = false },
+            onSave = { name, muscle, equipment, notes ->
+                scope.launch {
+                    repository.saveExercise(
+                        ExerciseEntity(
+                            id = UUID.randomUUID().toString(),
+                            name = name.trim(),
+                            muscleGroup = muscle,
+                            equipment = equipment,
+                            notes = notes.trim().ifBlank { null }
+                        )
+                    )
+                }
+                group = "All"
+                search = ""
+                showAdd = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddExerciseDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var muscle by remember { mutableStateOf("Chest") }
+    var equipment by remember { mutableStateOf("None") }
+    var notes by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New exercise") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Exercise name") },
+                    singleLine = true
+                )
+                SimpleDropdown("Muscle group", muscle, muscleGroups.drop(1)) { muscle = it }
+                SimpleDropdown("Equipment", equipment, equipmentTypes) { equipment = it }
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name, muscle, equipment, notes) },
+                enabled = name.isNotBlank()
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun SimpleDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = { onSelected(option); expanded = false }
+                )
             }
         }
     }
@@ -94,7 +257,6 @@ private fun PlaceholderScreen(title: String, description: String) {
     ) {
         Text("Sprinter", style = MaterialTheme.typography.headlineLarge)
         Text(title, style = MaterialTheme.typography.titleLarge)
-        Text(description, style = MaterialTheme.typography.bodyLarge)
-        Text("Personal-first • Offline-first", style = MaterialTheme.typography.labelMedium)
+        Text(description)
     }
 }
