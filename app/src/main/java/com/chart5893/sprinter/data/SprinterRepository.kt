@@ -5,10 +5,14 @@ import kotlinx.coroutines.flow.Flow
 class SprinterRepository(private val dao: SprinterDao) {
     val exercises: Flow<List<ExerciseEntity>> = dao.observeExercises()
     val routines: Flow<List<RoutineEntity>> = dao.observeRoutines()
+    val routineExercises: Flow<List<RoutineExerciseEntity>> = dao.observeRoutineExercises()
     val sessions: Flow<List<WorkoutSessionEntity>> = dao.observeSessions()
 
     suspend fun saveExercise(exercise: ExerciseEntity) = dao.upsertExercise(exercise)
     suspend fun saveRoutine(routine: RoutineEntity) = dao.upsertRoutine(routine)
+    suspend fun saveRoutineWithExercises(routine: RoutineEntity, entries: List<RoutineExerciseEntity>) =
+        dao.saveRoutineWithExercises(routine, entries)
+    suspend fun deleteRoutine(id: String) = dao.deleteRoutine(id)
     suspend fun deleteCustomExercise(id: String): Boolean = dao.deleteUnusedCustomExercise(id) > 0
 
     suspend fun seedExercises() {
