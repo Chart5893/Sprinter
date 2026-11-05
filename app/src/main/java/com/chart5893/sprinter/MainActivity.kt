@@ -84,6 +84,7 @@ private val equipmentTypes = listOf(
     "None", "Barbell", "Dumbbell", "Machine", "Cable", "Bodyweight", "Other"
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExerciseLibrary(repository: SprinterRepository) {
     val exercises by repository.exercises.collectAsState(initial = emptyList())
@@ -221,6 +222,7 @@ private fun AddExerciseDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SimpleDropdown(
     label: String,
