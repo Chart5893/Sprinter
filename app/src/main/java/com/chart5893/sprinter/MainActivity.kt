@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -92,6 +93,8 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
     var search by remember { mutableStateOf("") }
     var group by remember { mutableStateOf("All") }
     var showAdd by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<ExerciseEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) { repository.seedExercises() }
 
@@ -101,6 +104,7 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
                 it.name.contains(search.trim(), ignoreCase = true)
         }
     }
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -144,21 +148,56 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
         Text("${visible.size} exercises", style = MaterialTheme.typography.labelMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(visible, key = { it.id }) { exercise ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            listOfNotNull(exercise.muscleGroup, exercise.equipment)
-                                .joinToString(" • "),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        if (!exercise.notes.isNullOrBlank()) {
-                            Text(exercise.notes, style = MaterialTheme.typography.bodySmall)
+                val isCustom = !exercise.id.startsWith("starter-")
+                if (isCustom) {
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { it != SwipeToDismissBoxValue.EndToStart }
+                    )
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        enableDismissFromStartToEnd = false,
+                        backgroundContent = {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = { pendingDelete = exercise },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) { Text("Delete") }
+                            }
                         }
+                    ) {
+                        ExerciseCard(exercise)
                     }
+                } else {
+                    ExerciseCard(exercise)
                 }
             }
         }
+    }
+    SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    pendingDelete?.let { exercise ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete custom exercise?") },
+            text = { Text("Remove \\\"\${exercise.name}\\\" from your library? This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = null
+                    scope.launch {
+                        if (!repository.deleteCustomExercise(exercise.id)) {
+                            snackbarHostState.showSnackbar("Cannot delete an exercise used by a routine or workout.")
+                        }
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } }
+        )
     }
     if (showAdd) {
         AddExerciseDialog(
@@ -180,6 +219,22 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
                 showAdd = false
             }
         )
+    }
+}
+
+@Composable
+private fun ExerciseCard(exercise: ExerciseEntity) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                listOfNotNull(exercise.muscleGroup, exercise.equipment).joinToString(" • "),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (!exercise.notes.isNullOrBlank()) {
+                Text(exercise.notes, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
 
