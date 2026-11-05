@@ -1,0 +1,25 @@
+# Android / Gradle
+.gradle/
+/local.properties
+/build/
+**/build/
+*.iml
+.idea/
+*.apk
+*.aab
+*.hprof
+captures/
+
+# Secrets and signing
+*.jks
+*.keystore
+*.env
+.env*
+!.env.example
+
+# Personal workout exports and databases
+*.db
+*.db-shm
+*.db-wal
+/workout-exports/
+/personal-data/
