@@ -35,7 +35,6 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val active = sessions.firstOrNull { it.status == "ACTIVE" }
-    var exerciseIndex by remember { mutableIntStateOf(0) }
     var restSeconds by remember { mutableIntStateOf(90) }
     var deadline by remember { mutableLongStateOf(0L) }
     var remaining by remember { mutableIntStateOf(0) }
@@ -62,8 +61,6 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
         }
     }
     val ordered = workoutExercises.filter { it.sessionId == active?.id }.sortedBy { it.displayOrder }
-    val current = ordered.getOrNull(exerciseIndex.coerceIn(0, (ordered.size - 1).coerceAtLeast(0)))
-    val sets = allSets.filter { it.workoutExerciseId == current?.id }.sortedBy { it.setOrder }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Active workout", style = MaterialTheme.typography.headlineMedium)
@@ -97,38 +94,45 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
                     }
                 }
             }
-            if (current != null) {
-                Text(exercises.firstOrNull { it.id == current.exerciseId }?.name ?: "Exercise",
-                    style = MaterialTheme.typography.titleLarge)
-                Text("Exercise ${exerciseIndex + 1} of ${ordered.size}")
-                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(sets, key = { it.id }) { set ->
-                        SetEditor(set, onSave = { weight, reps, action ->
-                            scope.launch {
-                                repository.saveSet(set.copy(
-                                    weightGrams = weight?.let { (it * 453.59237).toLong() },
-                                    reps = reps,
-                                    completedAt = when (action) {
-                                        "COMPLETE" -> set.completedAt ?: System.currentTimeMillis()
-                                        "UNDO" -> null
-                                        else -> set.completedAt
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(ordered, key = { it.id }) { workoutExercise ->
+                    val exercise = exercises.firstOrNull { it.id == workoutExercise.exerciseId }
+                    val exerciseSets = allSets.filter { it.workoutExerciseId == workoutExercise.id }
+                        .sortedBy { it.setOrder }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(exercise?.name ?: "Exercise", style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                        Text(listOfNotNull(exercise?.muscleGroup, exercise?.equipment).joinToString(" • "),
+                            style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("SET", modifier = Modifier.width(38.dp), style = MaterialTheme.typography.labelSmall)
+                            Text("LB", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                            Text("REPS", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                            Text("DONE", style = MaterialTheme.typography.labelSmall)
+                        }
+                        exerciseSets.forEach { set ->
+                            SetEditor(set, onSave = { weight, reps, action ->
+                                scope.launch {
+                                    repository.saveSet(set.copy(
+                                        weightGrams = weight?.let { (it * 453.59237).toLong() },
+                                        reps = reps,
+                                        completedAt = when (action) {
+                                            "COMPLETE" -> set.completedAt ?: System.currentTimeMillis()
+                                            "UNDO" -> null
+                                            else -> set.completedAt
+                                        }
+                                    ))
+                                    if (action == "COMPLETE" && set.completedAt == null) {
+                                        timerVisible = true
+                                        lastPulse = -1
+                                        deadline = SystemClock.elapsedRealtime() + restSeconds * 1000L
                                     }
-                                ))
-                                if (action == "COMPLETE" && set.completedAt == null) {
-                                    timerVisible = true
-                                    lastPulse = -1
-                                    deadline = SystemClock.elapsedRealtime() + restSeconds * 1000L
                                 }
-                            }
-                        })
+                            })
+                        }
                     }
+                    HorizontalDivider()
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { exerciseIndex-- }, enabled = exerciseIndex > 0) { Text("Previous") }
-                    OutlinedButton(onClick = { exerciseIndex++ }, enabled = exerciseIndex < ordered.lastIndex) { Text("Next") }
-                }
-            } else {
-                Spacer(Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { abandonConfirm = true }, modifier = Modifier.weight(1f)) { Text("Discard") }
@@ -165,34 +169,41 @@ private fun SetEditor(set: SetEntryEntity, onSave: (Double?, Int, String) -> Uni
     } ?: "") }
     var reps by remember(set.id) { mutableStateOf(set.reps?.toString() ?: "") }
     val complete = set.completedAt != null
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Set ${set.setOrder + 1}" + if (complete) " • Completed" else "")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(weight, { weight = it }, label = { Text("Weight (lb)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true, modifier = Modifier.weight(1f))
-                OutlinedTextField(reps, { reps = it }, label = { Text("Reps") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true, modifier = Modifier.weight(1f))
-            }
-            val valid = (weight.isBlank() || (weight.toDoubleOrNull() ?: -1.0) >= 0.0) &&
-                (reps.toIntOrNull() ?: 0) > 0
-            Button(onClick = {
-                onSave(weight.toDoubleOrNull(), reps.toInt(), if (complete) "SAVE" else "COMPLETE")
-            }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
-                Text(if (complete) "Save changes" else "Complete set")
-            }
-            if (!complete) {
-                TextButton(onClick = {
-                    if (valid) onSave(weight.toDoubleOrNull(), reps.toInt(), "SAVE")
-                }, enabled = valid) { Text("Save without completing") }
-            } else {
-                TextButton(onClick = {
-                    onSave(weight.toDoubleOrNull(), reps.toIntOrNull() ?: set.reps ?: 0, "UNDO")
-                }) { Text("Undo completion") }
-            }
-        }
+    val valid = (weight.isBlank() || (weight.toDoubleOrNull() ?: -1.0) >= 0.0) &&
+        (reps.toIntOrNull() ?: 0) > 0
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("${set.setOrder + 1}", modifier = Modifier.width(38.dp).padding(top = 14.dp))
+        OutlinedTextField(
+            value = weight,
+            onValueChange = { weight = it },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(1f)
+        )
+        OutlinedTextField(
+            value = reps,
+            onValueChange = { reps = it },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f)
+        )
+        Button(
+            onClick = {
+                if (valid) onSave(weight.toDoubleOrNull(), reps.toInt(), if (complete) "UNDO" else "COMPLETE")
+            },
+            enabled = valid,
+            contentPadding = PaddingValues(horizontal = 10.dp),
+            modifier = Modifier.padding(top = 4.dp)
+        ) { Text(if (complete) "✓" else "○") }
+    }
+    if (complete) {
+        TextButton(onClick = {
+            if (valid) onSave(weight.toDoubleOrNull(), reps.toInt(), "SAVE")
+        }, enabled = valid) { Text("Save edited values") }
+    } else {
+        TextButton(onClick = {
+            if (valid) onSave(weight.toDoubleOrNull(), reps.toInt(), "SAVE")
+        }, enabled = valid) { Text("Save changes") }
     }
 }
 
