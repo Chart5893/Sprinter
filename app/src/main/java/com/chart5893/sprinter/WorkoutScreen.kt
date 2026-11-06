@@ -11,6 +11,7 @@ import android.os.VibratorManager
 import android.content.Context
 import android.os.SystemClock
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,6 +46,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
     var lastPulse by remember { mutableIntStateOf(-1) }
     var finishConfirm by remember { mutableStateOf(false) }
     var abandonConfirm by remember { mutableStateOf(false) }
+    var guideExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
 
     LaunchedEffect(active?.id) {
         while (true) { nowMillis = System.currentTimeMillis(); delay(1000) }
@@ -101,7 +103,9 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
                     val exerciseSets = allSets.filter { it.workoutExerciseId == workoutExercise.id }
                         .sortedBy { it.setOrder }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(exercise?.name ?: "Exercise", style = MaterialTheme.typography.titleLarge,
+                        Text(exercise?.name ?: "Exercise",
+                            modifier = Modifier.clickable { guideExercise = exercise },
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary)
                         Text(listOfNotNull(exercise?.muscleGroup, exercise?.equipment).joinToString(" • "),
                             style = MaterialTheme.typography.bodySmall)
@@ -161,6 +165,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
             }
         }
     }
+    guideExercise?.let { ExerciseGuideDialog(it) { guideExercise = null } }
     if (finishConfirm && active != null) {
         AlertDialog(onDismissRequest = { finishConfirm = false }, title = { Text("Finish workout?") },
             text = { Text("Save all recorded sets to workout history?") },
