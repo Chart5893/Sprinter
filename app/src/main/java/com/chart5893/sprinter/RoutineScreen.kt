@@ -17,7 +17,8 @@ import java.util.UUID
 private data class RoutineDraftExercise(
     val exerciseId: String,
     val sets: String = "3",
-    val reps: String = "10"
+    val reps: String = "10",
+    val weight: String = ""
 )
 
 @Composable
@@ -57,7 +58,8 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
                             exerciseId = item.exerciseId,
                             displayOrder = index,
                             targetSets = item.sets.toIntOrNull(),
-                            targetReps = item.reps.toIntOrNull()
+                            targetReps = item.reps.toIntOrNull(),
+                            targetWeightGrams = item.weight.toDoubleOrNull()?.let { (it * 453.59237).toLong() }
                         )
                     }
                     scope.launch {
@@ -94,7 +96,8 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
                             selected.forEach { item ->
                                 val name = exercises.firstOrNull { it.id == item.exerciseId }?.name
                                     ?: "Unknown exercise"
-                                Text("• $name — ${item.targetSets ?: 0} × ${item.targetReps ?: 0}")
+                                Text("• $name — ${item.targetSets ?: 0} × ${item.targetReps ?: 0}" +
+                                    (item.targetWeightGrams?.let { " @ %.1f lb".format(java.util.Locale.US, it / 453.59237) } ?: ""))
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
@@ -146,7 +149,8 @@ private fun RoutineEditor(
                 RoutineDraftExercise(
                     exerciseId = it.exerciseId,
                     sets = it.targetSets?.toString() ?: "3",
-                    reps = it.targetReps?.toString() ?: "10"
+                    reps = it.targetReps?.toString() ?: "10",
+                    weight = it.targetWeightGrams?.let { grams -> "%.1f".format(java.util.Locale.US, grams / 453.59237) } ?: ""
                 )
             })
         }
@@ -158,7 +162,8 @@ private fun RoutineEditor(
     val canSave = name.isNotBlank() && selected.isNotEmpty() &&
         selected.all {
             (it.sets.toIntOrNull() ?: 0) in 1..99 &&
-                (it.reps.toIntOrNull() ?: 0) in 1..999
+                (it.reps.toIntOrNull() ?: 0) in 1..999 &&
+                (it.weight.isBlank() || (it.weight.toDoubleOrNull() ?: -1.0) in 0.0..9999.0)
         }
 
     if (choosing) {
@@ -277,6 +282,14 @@ private fun RoutineEditor(
                     ) {
                         Text(exercise?.name ?: "Unknown exercise",
                             style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(
+                            value = item.weight,
+                            onValueChange = { selected[index] = item.copy(weight = it) },
+                            label = { Text("Target weight (lb, optional)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
                                 value = item.sets,
