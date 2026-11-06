@@ -116,6 +116,7 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
     var showAdd by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<ExerciseEntity?>(null) }
     var addingToRoutine by remember { mutableStateOf<ExerciseEntity?>(null) }
+    var previewExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var newRoutineName by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -194,15 +195,19 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
                             }
                         }
                     ) {
-                        ExerciseCard(exercise, onClick = { addingToRoutine = exercise })
+                        ExerciseCard(exercise, onClick = { previewExercise = exercise })
                     }
                 } else {
-                    ExerciseCard(exercise, onClick = { addingToRoutine = exercise })
+                    ExerciseCard(exercise, onClick = { previewExercise = exercise })
                 }
             }
         }
     }
     SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    previewExercise?.let { exercise ->
+        ExerciseGuideDialog(exercise, onDismiss = { previewExercise = null },
+            onAddToRoutine = { previewExercise = null; addingToRoutine = exercise })
     }
     addingToRoutine?.let { exercise ->
         AlertDialog(
