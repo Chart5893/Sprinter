@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -87,11 +88,15 @@ private val equipmentTypes = listOf(
 @Composable
 private fun ExerciseLibrary(repository: SprinterRepository) {
     val exercises by repository.exercises.collectAsState(initial = emptyList())
+    val routines by repository.routines.collectAsState(initial = emptyList())
+    val routineEntries by repository.routineExercises.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var search by remember { mutableStateOf("") }
     var group by remember { mutableStateOf("All") }
     var showAdd by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<ExerciseEntity?>(null) }
+    var addingToRoutine by remember { mutableStateOf<ExerciseEntity?>(null) }
+    var newRoutineName by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(repository) { repository.seedExercises() }
@@ -169,15 +174,86 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
                             }
                         }
                     ) {
-                        ExerciseCard(exercise)
+                        ExerciseCard(exercise, onClick = { addingToRoutine = exercise })
                     }
                 } else {
-                    ExerciseCard(exercise)
+                    ExerciseCard(exercise, onClick = { addingToRoutine = exercise })
                 }
             }
         }
     }
     SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    addingToRoutine?.let { exercise ->
+        AlertDialog(
+            onDismissRequest = { addingToRoutine = null; newRoutineName = "" },
+            title = { Text("Add ${exercise.name} to a routine") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (routines.isEmpty()) Text("No routines yet. Create one below.")
+                    routines.forEach { routine ->
+                        val included = routineEntries.any {
+                            it.routineId == routine.id && it.exerciseId == exercise.id
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    val current = routineEntries.filter { it.routineId == routine.id }
+                                        .sortedBy { it.displayOrder }
+                                    if (!included) {
+                                        repository.saveRoutineWithExercises(
+                                            routine.copy(updatedAt = System.currentTimeMillis()),
+                                            current + RoutineExerciseEntity(
+                                                routineId = routine.id,
+                                                exerciseId = exercise.id,
+                                                displayOrder = current.size,
+                                                targetSets = 3,
+                                                targetReps = 10
+                                            )
+                                        )
+                                    }
+                                    addingToRoutine = null
+                                }
+                            },
+                            enabled = !included,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (included) "${routine.name} (already added)" else routine.name) }
+                    }
+                    HorizontalDivider()
+                    OutlinedTextField(
+                        value = newRoutineName,
+                        onValueChange = { newRoutineName = it },
+                        label = { Text("New routine name") },
+                        singleLine = true
+                    )
+                    Button(
+                        enabled = newRoutineName.isNotBlank(),
+                        onClick = {
+                            val name = newRoutineName.trim()
+                            scope.launch {
+                                val now = System.currentTimeMillis()
+                                val id = UUID.randomUUID().toString()
+                                repository.saveRoutineWithExercises(
+                                    RoutineEntity(id = id, name = name, createdAt = now, updatedAt = now),
+                                    listOf(RoutineExerciseEntity(
+                                        routineId = id, exerciseId = exercise.id,
+                                        displayOrder = 0, targetSets = 3, targetReps = 10
+                                    ))
+                                )
+                                addingToRoutine = null
+                                newRoutineName = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Create routine with exercise") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { addingToRoutine = null; newRoutineName = "" }) {
+                    Text("Close")
+                }
+            }
+        )
     }
     pendingDelete?.let { exercise ->
         AlertDialog(
@@ -221,14 +297,15 @@ private fun ExerciseLibrary(repository: SprinterRepository) {
 }
 
 @Composable
-private fun ExerciseCard(exercise: ExerciseEntity) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun ExerciseCard(exercise: ExerciseEntity, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp)) {
             Text(exercise.name, style = MaterialTheme.typography.titleMedium)
             Text(
                 listOfNotNull(exercise.muscleGroup, exercise.equipment).joinToString(" • "),
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(if (exercise.id.startsWith("starter-")) "Built-in" else "Custom", style = MaterialTheme.typography.labelSmall)
             if (!exercise.notes.isNullOrBlank()) {
                 Text(exercise.notes, style = MaterialTheme.typography.bodySmall)
             }
