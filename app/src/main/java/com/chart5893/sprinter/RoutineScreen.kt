@@ -21,7 +21,7 @@ private data class RoutineDraftExercise(
 )
 
 @Composable
-internal fun RoutineScreen(repository: SprinterRepository) {
+internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () -> Unit) {
     val routines by repository.routines.collectAsState(initial = emptyList())
     val entries by repository.routineExercises.collectAsState(initial = emptyList())
     val exercises by repository.exercises.collectAsState(initial = emptyList())
@@ -97,6 +97,12 @@ internal fun RoutineScreen(repository: SprinterRepository) {
                                 Text("• $name — ${item.targetSets ?: 0} × ${item.targetReps ?: 0}")
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    scope.launch {
+                                        repository.startWorkout(routine.id, selected)
+                                        onWorkoutStarted()
+                                    }
+                                }, enabled = selected.isNotEmpty()) { Text("Start") }
                                 OutlinedButton(onClick = { editing = routine }) { Text("Edit") }
                                 TextButton(onClick = { deleting = routine }) { Text("Delete") }
                             }
