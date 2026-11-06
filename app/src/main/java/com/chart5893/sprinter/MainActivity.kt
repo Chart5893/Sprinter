@@ -21,7 +21,8 @@ import java.util.UUID
 private enum class Screen(val route: String, val title: String) {
     Exercises("exercises", "Exercises"),
     Routines("routines", "Routines"),
-    History("history", "History")
+    History("history", "History"),
+    Workout("workout", "Workout")
 }
 
 class MainActivity : ComponentActivity() {
@@ -43,10 +44,13 @@ class MainActivity : ComponentActivity() {
 private fun SprinterApp(repository: SprinterRepository) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
+    val sessions by repository.sessions.collectAsState(initial = emptyList())
+    val active = sessions.any { it.status == "ACTIVE" }
+    LaunchedEffect(repository) { repository.cleanupTemporarySessions() }
     Scaffold(
         bottomBar = {
             NavigationBar {
-                Screen.entries.forEach { screen ->
+                Screen.entries.filter { it != Screen.Workout }.forEach { screen ->
                     NavigationBarItem(
                         selected = backStack?.destination?.route == screen.route,
                         onClick = {
@@ -63,16 +67,32 @@ private fun SprinterApp(repository: SprinterRepository) {
             }
         }
     ) { padding ->
+        Column(Modifier.fillMaxSize()) {
+            if (active && backStack?.destination?.route != Screen.Workout.route) {
+                Button(onClick = { navController.navigate(Screen.Workout.route) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                    Text("Resume active workout")
+                }
+            }
         NavHost(
             navController = navController,
             startDestination = Screen.Exercises.route,
             modifier = Modifier.padding(padding)
         ) {
             composable(Screen.Exercises.route) { ExerciseLibrary(repository) }
-            composable(Screen.Routines.route) { RoutineScreen(repository) }
-            composable(Screen.History.route) {
-                PlaceholderScreen("Workout history", "Completed sessions will appear here.")
+            composable(Screen.Routines.route) {
+                RoutineScreen(repository) { navController.navigate(Screen.Workout.route) }
             }
+            composable(Screen.Workout.route) {
+                WorkoutScreen(repository) { navController.navigate(Screen.Routines.route) {
+                    popUpTo(Screen.Routines.route) { inclusive = false }
+                    launchSingleTop = true
+                } }
+            }
+            composable(Screen.History.route) {
+                HistoryScreen(repository)
+            }
+        }
         }
     }
 }
