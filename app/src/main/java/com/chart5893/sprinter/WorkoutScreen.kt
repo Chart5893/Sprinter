@@ -103,14 +103,18 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
                 Text("Exercise ${exerciseIndex + 1} of ${ordered.size}")
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(sets, key = { it.id }) { set ->
-                        SetEditor(set, onSave = { weight, reps, complete ->
+                        SetEditor(set, onSave = { weight, reps, action ->
                             scope.launch {
                                 repository.saveSet(set.copy(
-                                    weightGrams = (weight * 453.59237).toLong(),
+                                    weightGrams = weight?.let { (it * 453.59237).toLong() },
                                     reps = reps,
-                                    completedAt = if (complete) System.currentTimeMillis() else null
+                                    completedAt = when (action) {
+                                        "COMPLETE" -> set.completedAt ?: System.currentTimeMillis()
+                                        "UNDO" -> null
+                                        else -> set.completedAt
+                                    }
                                 ))
-                                if (complete) {
+                                if (action == "COMPLETE" && set.completedAt == null) {
                                     timerVisible = true
                                     lastPulse = -1
                                     deadline = SystemClock.elapsedRealtime() + restSeconds * 1000L
@@ -155,7 +159,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
 }
 
 @Composable
-private fun SetEditor(set: SetEntryEntity, onSave: (Double, Int, Boolean) -> Unit) {
+private fun SetEditor(set: SetEntryEntity, onSave: (Double?, Int, String) -> Unit) {
     var weight by remember(set.id) { mutableStateOf(set.weightGrams?.let {
         String.format(Locale.US, "%.1f", it / 453.59237)
     } ?: "") }
@@ -172,13 +176,21 @@ private fun SetEditor(set: SetEntryEntity, onSave: (Double, Int, Boolean) -> Uni
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true, modifier = Modifier.weight(1f))
             }
+            val valid = (weight.isBlank() || (weight.toDoubleOrNull() ?: -1.0) >= 0.0) &&
+                (reps.toIntOrNull() ?: 0) > 0
             Button(onClick = {
-                val w = weight.toDoubleOrNull() ?: return@Button
-                val r = reps.toIntOrNull() ?: return@Button
-                onSave(w, r, !complete)
-            }, enabled = (weight.toDoubleOrNull() ?: -1.0) >= 0.0 &&
-                (reps.toIntOrNull() ?: 0) > 0, modifier = Modifier.fillMaxWidth()) {
-                Text(if (complete) "Update / Undo completion" else "Complete set")
+                onSave(weight.toDoubleOrNull(), reps.toInt(), if (complete) "SAVE" else "COMPLETE")
+            }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
+                Text(if (complete) "Save changes" else "Complete set")
+            }
+            if (!complete) {
+                TextButton(onClick = {
+                    if (valid) onSave(weight.toDoubleOrNull(), reps.toInt(), "SAVE")
+                }, enabled = valid) { Text("Save without completing") }
+            } else {
+                TextButton(onClick = {
+                    onSave(weight.toDoubleOrNull(), reps.toIntOrNull() ?: set.reps ?: 0, "UNDO")
+                }) { Text("Undo completion") }
             }
         }
     }
