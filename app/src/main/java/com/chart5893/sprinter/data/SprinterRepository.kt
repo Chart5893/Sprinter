@@ -22,7 +22,9 @@ class SprinterRepository(private val dao: SprinterDao) {
         }
         val sets = workoutExercises.flatMapIndexed { index, exercise ->
             (0 until (sorted[index].targetSets ?: 3).coerceIn(1, 99)).map { setIndex ->
-                SetEntryEntity(UUID.randomUUID().toString(), exercise.id, setIndex)
+                SetEntryEntity(UUID.randomUUID().toString(), exercise.id, setIndex,
+                    weightGrams = sorted[index].targetWeightGrams,
+                    reps = sorted[index].targetReps)
             }
         }
         dao.startWorkout(WorkoutSessionEntity(id, System.currentTimeMillis(), routineId = routineId), workoutExercises, sets)
