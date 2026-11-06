@@ -15,7 +15,7 @@ import com.chart5893.sprinter.data.ExerciseEntity
 
 /** Offline exercise guidance. Images are displayed only when a reviewed local drawable exists. */
 @Composable
-internal fun ExerciseGuideDialog(exercise: ExerciseEntity, onDismiss: () -> Unit) {
+internal fun ExerciseGuideDialog(exercise: ExerciseEntity, onDismiss: () -> Unit, onAddToRoutine: (() -> Unit)? = null) {
     val context = LocalContext.current
     val imageName = "exercise_" + exercise.name.lowercase()
         .replace(Regex("[^a-z0-9]+"), "_").trim('_')
@@ -48,7 +48,11 @@ internal fun ExerciseGuideDialog(exercise: ExerciseEntity, onDismiss: () -> Unit
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = {
+            if (onAddToRoutine != null) Button(onClick = onAddToRoutine) { Text("Add to routine") }
+            else TextButton(onClick = onDismiss) { Text("Close") }
+        },
+        dismissButton = if (onAddToRoutine != null) ({ TextButton(onClick = onDismiss) { Text("Cancel") } }) else null
     )
 }
 
