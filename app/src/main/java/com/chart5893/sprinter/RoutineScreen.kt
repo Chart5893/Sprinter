@@ -146,11 +146,96 @@ private fun RoutineEditor(
         }
     }
     var choosing by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var group by remember { mutableStateOf("All") }
+    var pendingRemoval by remember { mutableStateOf<String?>(null) }
     val canSave = name.isNotBlank() && selected.isNotEmpty() &&
         selected.all {
             (it.sets.toIntOrNull() ?: 0) in 1..99 &&
                 (it.reps.toIntOrNull() ?: 0) in 1..999
         }
+
+    if (choosing) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Select exercises", style = MaterialTheme.typography.headlineMedium)
+            OutlinedTextField(
+                value = query, onValueChange = { query = it },
+                label = { Text("Search exercises") },
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+            var expanded by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Muscle group: ${group}")
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    listOf("All", "Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Cardio", "Other").forEach { option ->
+                        DropdownMenuItem(text = { Text(option) }, onClick = {
+                            group = option
+                            expanded = false
+                        })
+                    }
+                }
+            }
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(exercises.filter {
+                    (group == "All" || it.muscleGroup == group) &&
+                        it.name.contains(query.trim(), ignoreCase = true)
+                }, key = { it.id }) { exercise ->
+                    val included = selected.any { it.exerciseId == exercise.id }
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            if (included) pendingRemoval = exercise.id
+                            else selected.add(RoutineDraftExercise(exercise.id))
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+                                Text("${exercise.muscleGroup} • ${exercise.equipment} • " +
+                                    if (exercise.id.startsWith("starter-")) "Built-in" else "Custom",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                            Checkbox(
+                                checked = included,
+                                onCheckedChange = {
+                                    if (it && !included) selected.add(RoutineDraftExercise(exercise.id))
+                                    else if (!it && included) pendingRemoval = exercise.id
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            Button(onClick = { choosing = false }, modifier = Modifier.fillMaxWidth()) {
+                Text("Done (${selected.size} selected)")
+            }
+        }
+        pendingRemoval?.let { id ->
+            val label = exercises.firstOrNull { it.id == id }?.name ?: "this exercise"
+            AlertDialog(
+                onDismissRequest = { pendingRemoval = null },
+                title = { Text("Remove exercise?") },
+                text = { Text("Remove ${label} from this routine?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selected.removeAll { it.exerciseId == id }
+                        pendingRemoval = null
+                    }) { Text("Remove") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingRemoval = null }) { Text("Cancel") }
+                }
+            )
+        }
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -225,7 +310,7 @@ private fun RoutineEditor(
                                 },
                                 enabled = index < selected.lastIndex
                             ) { Text("Down") }
-                            TextButton(onClick = { selected.removeAt(index) }) { Text("Remove") }
+                            TextButton(onClick = { pendingRemoval = item.exerciseId }) { Text("Remove") }
                         }
                     }
                 }
@@ -243,40 +328,21 @@ private fun RoutineEditor(
         }
     }
 
-    if (choosing) {
-        var query by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { choosing = false },
-            title = { Text("Choose an exercise") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        label = { Text("Search") },
-                        singleLine = true
-                    )
-                    LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                        items(exercises.filter {
-                            it.name.contains(query, ignoreCase = true) &&
-                                selected.none { draft -> draft.exerciseId == it.id }
-                        }, key = { it.id }) { exercise ->
-                            Text(
-                                exercise.name,
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable {
-                                        selected.add(RoutineDraftExercise(exercise.id))
-                                        choosing = false
-                                    }
-                                    .padding(vertical = 12.dp)
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { choosing = false }) { Text("Done") }
-            }
-        )
+    if (!choosing) {
+        pendingRemoval?.let { id ->
+            val label = exercises.firstOrNull { it.id == id }?.name ?: "this exercise"
+            AlertDialog(
+                onDismissRequest = { pendingRemoval = null },
+                title = { Text("Remove exercise?") },
+                text = { Text("Remove ${label} from this routine?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selected.removeAll { it.exerciseId == id }
+                        pendingRemoval = null
+                    }) { Text("Remove") }
+                },
+                dismissButton = { TextButton(onClick = { pendingRemoval = null }) { Text("Cancel") } }
+            )
+        }
     }
 }
