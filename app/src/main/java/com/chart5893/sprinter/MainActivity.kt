@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val database = Room.databaseBuilder(
             applicationContext, SprinterDatabase::class.java, "sprinter.db"
-        ).build()
+        ).addMigrations(SprinterDatabase.MIGRATION_1_2).build()
         val repository = SprinterRepository(database.sprinterDao())
         setContent {
             MaterialTheme {
