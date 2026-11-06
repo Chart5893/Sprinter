@@ -187,7 +187,7 @@ private fun SetEditor(set: SetEntryEntity, onSave: (Double, Int, Boolean) -> Uni
 private fun vibratePulse(context: Context) {
     val vibrator = if (Build.VERSION.SDK_INT >= 31)
         context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-    else @Suppress("DEPRECATION") (context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
+    else context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     vibrator?.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE))
 }
 
