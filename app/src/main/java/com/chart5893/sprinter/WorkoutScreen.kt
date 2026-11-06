@@ -39,10 +39,16 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
     var deadline by remember { mutableLongStateOf(0L) }
     var remaining by remember { mutableIntStateOf(0) }
     var timerVisible by remember { mutableStateOf(true) }
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var activeRestSetId by remember { mutableStateOf<String?>(null) }
+    val restDurations = remember { mutableStateMapOf<String, Int>() }
     var lastPulse by remember { mutableIntStateOf(-1) }
     var finishConfirm by remember { mutableStateOf(false) }
     var abandonConfirm by remember { mutableStateOf(false) }
 
+    LaunchedEffect(active?.id) {
+        while (true) { nowMillis = System.currentTimeMillis(); delay(1000) }
+    }
     LaunchedEffect(deadline) {
         while (deadline > 0L) {
             val millis = deadline - SystemClock.elapsedRealtime()
@@ -55,6 +61,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
             if (millis <= 0L) {
                 playCompletionTone(context)
                 deadline = 0L
+                activeRestSetId = null
                 break
             }
             delay(100)
@@ -63,34 +70,28 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
     val ordered = workoutExercises.filter { it.sessionId == active?.id }.sortedBy { it.displayOrder }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Active workout", style = MaterialTheme.typography.headlineMedium)
-        Text(routines.firstOrNull { it.id == active?.routineId }?.name ?: "Workout")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(routines.firstOrNull { it.id == active?.routineId }?.name ?: "Workout",
+                style = MaterialTheme.typography.titleLarge)
+            val elapsed = ((nowMillis - (active?.startedAt ?: nowMillis)) / 1000).coerceAtLeast(0)
+            Text("%02d:%02d:%02d".format(elapsed / 3600, (elapsed / 60) % 60, elapsed % 60),
+                style = MaterialTheme.typography.titleMedium)
+        }
         if (active == null) {
             Text("No workout in progress.")
             Button(onClick = onExit) { Text("Back") }
         } else {
-            if (deadline > 0L || !timerVisible) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Rest: ${remaining / 60}:${(remaining % 60).toString().padStart(2, '0')}")
-                    TextButton(onClick = { timerVisible = !timerVisible }) {
-                        Text(if (timerVisible) "Hide" else "Show")
-                    }
+            if (deadline > 0L) {
+                TextButton(onClick = { timerVisible = !timerVisible }) {
+                    Text(if (timerVisible) "Hide rest controls" else "Show rest controls")
                 }
-            }
-            if (timerVisible) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        deadline = (deadline - 15000).coerceAtLeast(SystemClock.elapsedRealtime())
-                    }, enabled = deadline > 0) { Text("-15s") }
-                    OutlinedButton(onClick = { deadline = 0L; remaining = 0 }) { Text("Stop") }
-                    OutlinedButton(onClick = {
-                        deadline = (if (deadline > 0) deadline else SystemClock.elapsedRealtime()) + 15000
-                    }) { Text("+15s") }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(60, 90, 120).forEach { seconds ->
-                        FilterChip(selected = restSeconds == seconds, onClick = { restSeconds = seconds },
-                            label = { Text("${seconds}s") })
+                if (timerVisible) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            deadline = (deadline - 15000).coerceAtLeast(SystemClock.elapsedRealtime())
+                        }) { Text("-15s") }
+                        OutlinedButton(onClick = { deadline = 0L; activeRestSetId = null; remaining = 0 }) { Text("Stop") }
+                        OutlinedButton(onClick = { deadline += 15000 }) { Text("+15s") }
                     }
                 }
             }
@@ -111,6 +112,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
                             Text("DONE", style = MaterialTheme.typography.labelSmall)
                         }
                         exerciseSets.forEach { set ->
+                            val duration = restDurations[set.id] ?: restSeconds
                             SetEditor(set, onSave = { weight, reps, action ->
                                 scope.launch {
                                     repository.saveSet(set.copy(
@@ -124,11 +126,30 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
                                     ))
                                     if (action == "COMPLETE" && set.completedAt == null) {
                                         timerVisible = true
+                                        activeRestSetId = set.id
                                         lastPulse = -1
-                                        deadline = SystemClock.elapsedRealtime() + restSeconds * 1000L
+                                        deadline = SystemClock.elapsedRealtime() + duration * 1000L
                                     }
                                 }
                             })
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                HorizontalDivider(modifier = Modifier.weight(1f))
+                                val isRunning = activeRestSetId == set.id && deadline > 0L
+                                TextButton(onClick = {
+                                    restDurations[set.id] = when (duration) {
+                                        60 -> 90
+                                        90 -> 120
+                                        120 -> 180
+                                        else -> 60
+                                    }
+                                }) {
+                                    Text(if (isRunning)
+                                        "%d:%02d".format(remaining / 60, remaining % 60)
+                                        else "%d:%02d".format(duration / 60, duration % 60))
+                                }
+                                HorizontalDivider(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                     HorizontalDivider()
