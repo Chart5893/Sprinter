@@ -36,7 +36,8 @@ data class RoutineExerciseEntity(
     val exerciseId: String,
     val displayOrder: Int,
     val targetSets: Int? = null,
-    val targetReps: Int? = null
+    val targetReps: Int? = null,
+    val targetWeightGrams: Long? = null
 )
 
 @Entity(
