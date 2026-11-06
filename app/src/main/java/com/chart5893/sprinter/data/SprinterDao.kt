@@ -37,6 +37,26 @@ interface SprinterDao {
     @Query("SELECT * FROM workout_sessions ORDER BY startedAt DESC")
     fun observeSessions(): Flow<List<WorkoutSessionEntity>>
 
+    @Query("SELECT * FROM workout_exercises ORDER BY displayOrder")
+    fun observeWorkoutExercises(): Flow<List<WorkoutExerciseEntity>>
+
+    @Query("SELECT * FROM set_entries ORDER BY setOrder")
+    fun observeSetEntries(): Flow<List<SetEntryEntity>>
+
+    @Query("SELECT * FROM workout_sessions WHERE status = 'ACTIVE' ORDER BY startedAt DESC LIMIT 1")
+    suspend fun findActiveSession(): WorkoutSessionEntity?
+
+    @Transaction
+    suspend fun startWorkout(session: WorkoutSessionEntity, exercises: List<WorkoutExerciseEntity>,
+                             sets: List<SetEntryEntity>) {
+        upsertSession(session)
+        exercises.forEach { upsertWorkoutExercise(it) }
+        sets.forEach { upsertSetEntry(it) }
+    }
+
+    @Query("DELETE FROM workout_sessions WHERE status = 'ABANDONED' AND startedAt < :cutoff")
+    suspend fun purgeOldAbandonedSessions(cutoff: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertExercise(exercise: ExerciseEntity)
 
