@@ -1,12 +1,41 @@
 package com.chart5893.sprinter.data
 
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 class SprinterRepository(private val dao: SprinterDao) {
     val exercises: Flow<List<ExerciseEntity>> = dao.observeExercises()
     val routines: Flow<List<RoutineEntity>> = dao.observeRoutines()
     val routineExercises: Flow<List<RoutineExerciseEntity>> = dao.observeRoutineExercises()
     val sessions: Flow<List<WorkoutSessionEntity>> = dao.observeSessions()
+
+
+    val workoutExercises: Flow<List<WorkoutExerciseEntity>> = dao.observeWorkoutExercises()
+    val setEntries: Flow<List<SetEntryEntity>> = dao.observeSetEntries()
+
+    suspend fun startWorkout(routineId: String, entries: List<RoutineExerciseEntity>): String {
+        dao.findActiveSession()?.let { return it.id }
+        val id = UUID.randomUUID().toString()
+        val sorted = entries.sortedBy { it.displayOrder }
+        val workoutExercises = sorted.mapIndexed { index, item ->
+            WorkoutExerciseEntity(UUID.randomUUID().toString(), id, item.exerciseId, index)
+        }
+        val sets = workoutExercises.flatMapIndexed { index, exercise ->
+            (0 until (sorted[index].targetSets ?: 3).coerceIn(1, 99)).map { setIndex ->
+                SetEntryEntity(UUID.randomUUID().toString(), exercise.id, setIndex)
+            }
+        }
+        dao.startWorkout(WorkoutSessionEntity(id, System.currentTimeMillis(), routineId = routineId), workoutExercises, sets)
+        return id
+    }
+
+    suspend fun saveSet(set: SetEntryEntity) = dao.upsertSetEntry(set)
+    suspend fun finishWorkout(session: WorkoutSessionEntity) =
+        dao.upsertSession(session.copy(status = "COMPLETED", finishedAt = System.currentTimeMillis()))
+    suspend fun abandonWorkout(session: WorkoutSessionEntity) =
+        dao.upsertSession(session.copy(status = "ABANDONED", finishedAt = System.currentTimeMillis()))
+    suspend fun cleanupTemporarySessions(): Int =
+        dao.purgeOldAbandonedSessions(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
 
     suspend fun saveExercise(exercise: ExerciseEntity) = dao.upsertExercise(exercise)
     suspend fun saveRoutine(routine: RoutineEntity) = dao.upsertRoutine(routine)
