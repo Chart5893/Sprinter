@@ -26,14 +26,37 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
     val routines by repository.routines.collectAsState(initial = emptyList())
     val entries by repository.routineExercises.collectAsState(initial = emptyList())
     val exercises by repository.exercises.collectAsState(initial = emptyList())
+    val sessions by repository.sessions.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    var viewing by remember { mutableStateOf<RoutineEntity?>(null) }
     var editing by remember { mutableStateOf<RoutineEntity?>(null) }
     var creating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<RoutineEntity?>(null) }
 
     LaunchedEffect(repository) { repository.seedExercises() }
 
-    if (creating || editing != null) {
+    if (viewing != null && !creating && editing == null) {
+        val routine = viewing!!
+        val selected = entries.filter { it.routineId == routine.id }.sortedBy { it.displayOrder }
+        val previous = sessions.filter { it.routineId == routine.id && it.status == "COMPLETED" }.maxByOrNull { it.finishedAt ?: 0L }
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            TextButton(onClick = { viewing = null }) { Text("← Routines") }
+            Text(routine.name, style = MaterialTheme.typography.headlineLarge)
+            Text(previous?.let { "Last performed: " + java.text.DateFormat.getDateInstance().format(java.util.Date(it.startedAt)) } ?: "Not performed yet")
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(selected, key = { it.exerciseId }) { item ->
+                    val exercise = exercises.firstOrNull { it.id == item.exerciseId }
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text("${item.targetSets ?: 3} × ${exercise?.name ?: "Exercise"}", style = MaterialTheme.typography.titleMedium)
+                        Text(exercise?.muscleGroup ?: "", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            OutlinedButton(onClick = { editing = routine; viewing = null }, modifier = Modifier.fillMaxWidth()) { Text("Edit routine") }
+            Button(onClick = { scope.launch { repository.startWorkout(routine.id, selected); onWorkoutStarted() } },
+                enabled = selected.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("START WORKOUT") }
+        }
+    } else if (creating || editing != null) {
         val routine = editing
         // Keying by routine ID resets the draft when switching between routines.
         key(routine?.id ?: "new") {
@@ -86,7 +109,7 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
                 items(routines, key = { it.id }) { routine ->
                     val selected = entries.filter { it.routineId == routine.id }
                         .sortedBy { it.displayOrder }
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable { viewing = routine }) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
