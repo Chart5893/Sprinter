@@ -199,7 +199,7 @@ private fun RoutineEditor(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(exercise.name, style = MaterialTheme.typography.titleMedium)
                                 Text("${exercise.muscleGroup} • ${exercise.equipment} • " +
-                                    if (exercise.id.startsWith("starter-")) "Built-in" else "Custom",
+                                    (if (exercise.id.startsWith("starter-")) "Built-in" else "Custom"),
                                     style = MaterialTheme.typography.bodySmall)
                             }
                             Checkbox(
