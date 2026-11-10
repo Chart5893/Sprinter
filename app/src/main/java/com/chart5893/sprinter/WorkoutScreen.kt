@@ -165,7 +165,7 @@ internal fun WorkoutScreen(repository: SprinterRepository, onExit: () -> Unit) {
             }
         }
     }
-    guideExercise?.let { ExerciseGuideDialog(it) { guideExercise = null } }
+    guideExercise?.let { ExerciseGuideDialog(exercise = it, onDismiss = { guideExercise = null }) }
     if (finishConfirm && active != null) {
         AlertDialog(onDismissRequest = { finishConfirm = false }, title = { Text("Finish workout?") },
             text = { Text("Save all recorded sets to workout history?") },
