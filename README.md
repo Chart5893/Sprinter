@@ -43,8 +43,27 @@ Planned features include budget-aware recipes and meal plans, beginner-friendly 
 
 This is a **future version 2 plan**, not a promise that these features exist in v1. See [ROADMAP.md](ROADMAP.md) for scope and implementation milestones.
 
-## Current state
-Initial Android application scaffold committed: Compose navigation and Room entity/DAO/database skeleton. **Not yet validated by an Android Studio build or device run.** The sync design is documented but not implemented.
+## Current state (November 9, 2026)
+The Android app has progressed beyond the initial scaffold. The **local workout tracker is a feature-complete candidate**, but it is **not yet a fully tested release**.
+
+### Implemented
+- Offline-first exercise library with 197 seeded exercises; 98 instructional illustrations added so far, with image associations still needing verification.
+- Create, edit, and delete routines; select exercises and configure target sets, reps, and weights.
+- Start and log workouts with sets, repetitions, weights, and rest timers.
+- View completed workout history and individual completed sets.
+- Export completed workout history to CSV using Android's document picker, without a subscription.
+- Record body measurements and calorie intake, review recent entries, and view six-month measurement charts.
+- Five-tab navigation (Profile, History, Workout, Exercises, Measurements), with gray and sage-green styling and a thumb-friendly Create routine action.
+
+### Validation and remaining work
+- The app has been run in an Android emulator. The History CSV export save flow was reported working in the emulator; exported values and spreadsheet compatibility still need verification.
+- Test routine editing, workout persistence and recovery after interruptions, history behavior, measurements, timers, audio/vibration cues, and accessibility.
+- Test a complete real-world workout on a physical Android phone; verify all exercise illustrations and finish the remaining library artwork.
+- The Profile tab is a placeholder. Local/guest profiles, optional Google sign-in, subscription entitlement linking, and Google Play Billing are **planned, not implemented**.
+- Automatic cloud sync, backend authentication, and the ChatGPT/MCP integration are **not implemented**. Validate the supported ChatGPT connection path before choosing the backend and subscription architecture.
+- No full build, automated test suite, or release-readiness verification is claimed from GitHub commits alone.
+
+The personal tracker checkpoint remains **November 18, 2026**, with an optional extension to **December 2, 2026**. See [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 1. Clone: `git clone https://github.com/Chart5893/Sprinter.git`
