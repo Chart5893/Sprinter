@@ -99,13 +99,10 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Your routines", style = MaterialTheme.typography.headlineMedium)
-            Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Create routine")
-            }
             if (routines.isEmpty()) {
                 Text("No routines yet. Create one for each workout day.")
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(routines, key = { it.id }) { routine ->
                     val selected = entries.filter { it.routineId == routine.id }
                         .sortedBy { it.displayOrder }
@@ -135,6 +132,9 @@ internal fun RoutineScreen(repository: SprinterRepository, onWorkoutStarted: () 
                         }
                     }
                 }
+            }
+            Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Create routine")
             }
         }
     }
