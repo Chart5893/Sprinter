@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val database = Room.databaseBuilder(
             applicationContext, SprinterDatabase::class.java, "sprinter.db"
-        ).addMigrations(SprinterDatabase.MIGRATION_1_2).build()
+        ).addMigrations(SprinterDatabase.MIGRATION_1_2, SprinterDatabase.MIGRATION_2_3).build()
         val repository = SprinterRepository(database.sprinterDao())
         setContent {
             MaterialTheme {
@@ -84,7 +84,7 @@ private fun SprinterApp(repository: SprinterRepository) {
         ) {
             composable(Screen.Exercises.route) { ExerciseLibrary(repository) }
             composable(Screen.Profile.route) { PlaceholderScreen("Profile", "Personal details, goals and preferences will live here.") }
-            composable(Screen.Measurements.route) { PlaceholderScreen("Measurements", "Track body weight, measurements and daily calorie intake here.") }
+            composable(Screen.Measurements.route) { MeasurementsScreen(repository) }
             composable(Screen.WorkoutHome.route) {
                 RoutineScreen(repository) { navController.navigate(Screen.Workout.route) }
             }
