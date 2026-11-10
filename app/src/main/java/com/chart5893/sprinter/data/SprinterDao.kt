@@ -9,6 +9,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SprinterDao {
+    @Query("SELECT * FROM measurement_entries ORDER BY date DESC")
+    fun observeMeasurements(): Flow<List<MeasurementEntryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMeasurement(entry: MeasurementEntryEntity)
+
+    @Query("DELETE FROM measurement_entries WHERE id = :id")
+    suspend fun deleteMeasurement(id: String)
+
     @Query("SELECT * FROM exercises ORDER BY name")
     fun observeExercises(): Flow<List<ExerciseEntity>>
 
