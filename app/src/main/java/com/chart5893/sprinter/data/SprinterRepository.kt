@@ -4,6 +4,10 @@ import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
 class SprinterRepository(private val dao: SprinterDao) {
+    val measurements: Flow<List<MeasurementEntryEntity>> = dao.observeMeasurements()
+    suspend fun saveMeasurement(entry: MeasurementEntryEntity) = dao.upsertMeasurement(entry)
+    suspend fun deleteMeasurement(id: String) = dao.deleteMeasurement(id)
+
     val exercises: Flow<List<ExerciseEntity>> = dao.observeExercises()
     val routines: Flow<List<RoutineEntity>> = dao.observeRoutines()
     val routineExercises: Flow<List<RoutineExerciseEntity>> = dao.observeRoutineExercises()
