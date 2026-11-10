@@ -32,3 +32,29 @@ Tentative personal tracker review: **November 18, 2026**, extendable to **Decemb
 
 ## Scope control
 Keep the personal tracker simple, but do not build a local-only data model that would require a redesign for automatic synchronization. No subscription or social features during the MVP.
+
+## Version 2 — Nutrition, education and sustainable progress (future)
+**Status: concept/planned; not part of the v1 release gate.** Build on v1's dated measurement and calorie records, without blocking workout logging or requiring a nutrition subscription.
+
+### Nutrition experience
+- Optional nutrition onboarding: goals (fat loss, muscle gain, maintenance or general health), food preferences, dietary restrictions, budget, cooking experience, household size and available equipment.
+- Practical, affordable recipes and meal plans that teach shopping, basic preparation, substitutions, portioning and cooking skills; include accessible, budget-conscious options rather than assuming premium ingredients.
+- Nutrition guidance for calorie and protein targets, with other nutrients where useful. Estimates must be labeled as estimates and adjustable by the user.
+- Suggest filling, lower-calorie foods and sensible meal additions when hunger management matters, without treating foods as morally good or bad.
+- **One-tap recipe logging:** when a user prepares a recommended recipe, record the estimated calories and nutrients based on the chosen servings and any ingredient substitutions. Let users correct the record.
+- Support manual daily intake entry alongside optional recipe-based logging; avoid double counting.
+
+### Progress and coaching principles
+- Celebrate consistency and achievable improvements: walking farther, lifting more, preparing a healthier meal or making a better-informed choice, not only weight changes.
+- Explain that fat loss and muscle gain can happen together, so scale weight alone may not reflect progress. Connect nutrition trends with workout history and body measurements where the user consents.
+- Use supportive, nonjudgmental language; avoid shame, unrealistic deadlines or treating a missed day as failure.
+- Make data entry transparent and correctable. Insights depend on user-entered information and should acknowledge missing or uncertain data.
+- Preserve offline-first fundamentals, privacy, user control and clear consent for any future AI-powered personalization.
+
+### v2 implementation milestones (not yet scheduled)
+1. Define nutrition records, serving sizes, units and recipe data model.
+2. Build recipe discovery, budgeting and cooking instruction screens.
+3. Add meal plans, grocery lists and substitution support.
+4. Implement one-tap recipe-to-food-log flow and corrections.
+5. Add optional progress insights linking nutrition, measurements and workouts.
+6. Validate nutritional calculations, accessibility, privacy and real-user usability before release.
