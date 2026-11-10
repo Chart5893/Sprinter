@@ -36,6 +36,13 @@ Sprinter is a personal-first Android strength-training tracker. **The defining p
 ## MVP checkpoints
 See [ROADMAP.md](ROADMAP.md) and [GitHub Issues](https://github.com/Chart5893/Sprinter/issues). The personal tracker review is **November 18, 2026**, extendable to **December 2**. **A usable local tracker is an intermediate milestone, not completion of Sprinter's defining AI-access goal.**
 
+## Future v2: nutrition and practical healthy eating
+Sprinter v2 is planned to expand beyond workout logging into **affordable, approachable nutrition education**. The aim is to help people make sustainable improvements whether they want to lose a little weight, lose substantially more, build muscle or simply eat better.
+
+Planned features include budget-aware recipes and meal plans, beginner-friendly cooking instructions, practical grocery guidance, filling meal options, personalized nutrition targets, and **one-tap logging of recommended recipes** with adjustable servings and ingredients. The experience should recognize progress beyond scale weight, including improved strength, endurance and individual food choices, and avoid judgment or guilt. Nutritional values will be estimates that users can review and correct.
+
+This is a **future version 2 plan**, not a promise that these features exist in v1. See [ROADMAP.md](ROADMAP.md) for scope and implementation milestones.
+
 ## Current state
 Initial Android application scaffold committed: Compose navigation and Room entity/DAO/database skeleton. **Not yet validated by an Android Studio build or device run.** The sync design is documented but not implemented.
 
