@@ -18,11 +18,14 @@ import com.chart5893.sprinter.data.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-private enum class Screen(val route: String, val title: String) {
-    Exercises("exercises", "Exercises"),
-    Routines("routines", "Routines"),
-    History("history", "History"),
-    Workout("workout", "Workout")
+private enum class Screen(val route: String, val title: String, val icon: String) {
+    Profile("profile", "Profile", "👤"),
+    History("history", "History", "🕘"),
+    WorkoutHome("workout_home", "Workout", "🏋"),
+    Exercises("exercises", "Exercises", "📚"),
+    Measurements("measurements", "Measurements", "📏"),
+    Routines("routines", "Routines", ""),
+    Workout("workout", "Active workout", "")
 }
 
 class MainActivity : ComponentActivity() {
@@ -50,9 +53,9 @@ private fun SprinterApp(repository: SprinterRepository) {
     Scaffold(
         bottomBar = {
             NavigationBar {
-                Screen.entries.filter { it != Screen.Workout }.forEach { screen ->
+                Screen.entries.take(5).forEach { screen ->
                     NavigationBarItem(
-                        selected = backStack?.destination?.route == screen.route,
+                        selected = backStack?.destination?.route == screen.route || (screen == Screen.WorkoutHome && backStack?.destination?.route in listOf(Screen.Routines.route, Screen.Workout.route)),
                         onClick = {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -60,7 +63,7 @@ private fun SprinterApp(repository: SprinterRepository) {
                                 restoreState = true
                             }
                         },
-                        icon = { Text("•") },
+                        icon = { Text(screen.icon) },
                         label = { Text(screen.title) }
                     )
                 }
@@ -76,10 +79,15 @@ private fun SprinterApp(repository: SprinterRepository) {
             }
         NavHost(
             navController = navController,
-            startDestination = Screen.Exercises.route,
+            startDestination = Screen.WorkoutHome.route,
             modifier = Modifier.padding(padding)
         ) {
             composable(Screen.Exercises.route) { ExerciseLibrary(repository) }
+            composable(Screen.Profile.route) { PlaceholderScreen("Profile", "Personal details, goals and preferences will live here.") }
+            composable(Screen.Measurements.route) { PlaceholderScreen("Measurements", "Track body weight, measurements and daily calorie intake here.") }
+            composable(Screen.WorkoutHome.route) {
+                RoutineScreen(repository) { navController.navigate(Screen.Workout.route) }
+            }
             composable(Screen.Routines.route) {
                 RoutineScreen(repository) { navController.navigate(Screen.Workout.route) }
             }
