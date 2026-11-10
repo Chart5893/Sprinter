@@ -12,11 +12,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.*
 import androidx.room.Room
 import com.chart5893.sprinter.data.*
 import kotlinx.coroutines.launch
 import java.util.UUID
+
+private val SprinterColors = lightColorScheme(
+    primary = Color(0xFF416B50),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFC7E8CC),
+    onPrimaryContainer = Color(0xFF173C25),
+    secondary = Color(0xFF5A7562),
+    onSecondary = Color.White,
+    background = Color(0xFFF0F2F0),
+    onBackground = Color(0xFF202A23),
+    surface = Color(0xFFFAFCFA),
+    onSurface = Color(0xFF202A23),
+    surfaceVariant = Color(0xFFE1E8E1),
+    onSurfaceVariant = Color(0xFF48564B),
+    outline = Color(0xFF819085)
+)
 
 private enum class Screen(val route: String, val title: String, val icon: String) {
     Profile("profile", "Profile", "👤"),
@@ -36,7 +53,7 @@ class MainActivity : ComponentActivity() {
         ).addMigrations(SprinterDatabase.MIGRATION_1_2, SprinterDatabase.MIGRATION_2_3).build()
         val repository = SprinterRepository(database.sprinterDao())
         setContent {
-            MaterialTheme {
+            MaterialTheme(colorScheme = SprinterColors) {
                 SprinterApp(repository)
             }
         }
@@ -51,8 +68,9 @@ private fun SprinterApp(repository: SprinterRepository) {
     val active = sessions.any { it.status == "ACTIVE" }
     LaunchedEffect(repository) { repository.cleanupTemporarySessions() }
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                 Screen.entries.take(5).forEach { screen ->
                     NavigationBarItem(
                         selected = backStack?.destination?.route == screen.route || (screen == Screen.WorkoutHome && backStack?.destination?.route in listOf(Screen.Routines.route, Screen.Workout.route)),
@@ -63,6 +81,13 @@ private fun SprinterApp(repository: SprinterRepository) {
                                 restoreState = true
                             }
                         },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.surface,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                        ),
                         icon = { Text(screen.icon) },
                         label = { Text(screen.title) }
                     )
