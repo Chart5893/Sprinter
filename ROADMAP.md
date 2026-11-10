@@ -30,6 +30,15 @@ Tentative personal tracker review: **November 18, 2026**, extendable to **Decemb
 5. Optional Health Connect, backup/restore and historical Strong import.
 6. Prepare multi-user security, privacy disclosures, Play Store testing and release.
 
+## Premium AI workout review (planned; after integration feasibility and account architecture)
+- After a workout is saved, show a completion summary with a **Review with AI** action and an equally clear **Done** option. Never automatically start a paid AI request.
+- Let users initiate the same review later from an individual completed workout in History.
+- For subscribed users, open an AI discussion grounded in that session and relevant recent workout trends. Support questions about progress, goals, recovery, and how the user feels; recommendations remain optional and user-controlled.
+- For free users, preserve the full workout summary and history access. The AI action may explain premium access, but must not block completing, saving, or exporting workouts.
+- Verify subscription entitlement server-side before invoking a paid model; do not put API keys in the Android client.
+- Prepare compact local workout summaries where possible to reduce token usage; measure real API cost per review and set reasonable safeguards before choosing subscription pricing.
+- Keep the profile/Google sign-in, Google Play Billing, and ChatGPT/MCP versus in-app API architecture decisions together in the later account-and-subscription phase.
+
 ## Scope control
 Keep the personal tracker simple, but do not build a local-only data model that would require a redesign for automatic synchronization. No subscription or social features during the MVP.
 
